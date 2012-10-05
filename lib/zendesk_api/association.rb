@@ -223,15 +223,14 @@ module ZendeskAPI
       end
 
       # Allows using has and has_many without having class defined yet
-      # Guesses at Resource, if it's anything else and the class is later
-      # reopened under a different superclass, an error will be thrown
+      # try current namespace, then ZendeskAPI
       def get_class(resource)
-        return false if resource.nil?
+        return unless resource
         res = resource.to_s.modulize
 
         begin
           const_get(res)
-        rescue NameError
+        rescue NameError, ArgumentError # ruby raises NameError, rails raises ArgumentError
           ZendeskAPI.get_class(resource)
         end
       end
@@ -239,28 +238,11 @@ module ZendeskAPI
   end
 
   class << self
-    # Make sure Rails' overwriting of const_missing doesn't cause trouble
-    def const_missing(*args)
-      Object.const_missing(*args)
-    end
-
-    # Allows using has and has_many without having class defined yet
-    # Guesses at Resource, if it's anything else and the class is later
-    # reopened under a different superclass, an error will be thrown
     def get_class(resource)
-      return false if resource.nil?
-      res = resource.to_s.modulize.split("::")
-
-      begin
-        res[1..-1].inject(ZendeskAPI.const_get(res[0])) do |iter, k|
-          begin
-            iter.const_get(k)
-          rescue
-            iter.const_set(k, Class.new(Resource))
-          end
-        end
-      rescue NameError
-        ZendeskAPI.const_set(res[0], Class.new(Resource))
+      return unless resource
+      require "zendesk_api/resources/#{resource}"
+      resource.to_s.split("/").inject(ZendeskAPI) do |subclass, part|
+        subclass.const_get(part.modulize)
       end
     end
   end
