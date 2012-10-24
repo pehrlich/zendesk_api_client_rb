@@ -27,6 +27,7 @@ module ZendeskAPI
               rescue Faraday::Error::ClientError => e
                 log_error(e, method)
                 opts[:with].respond_to?(:call) ? opts[:with].call : opts[:with]
+                raise e
               end
             end
           end
@@ -36,6 +37,7 @@ module ZendeskAPI
           rescue Faraday::Error::ClientError => e
             log_error(e)
             opts[:with].respond_to?(:call) ? opts[:with].call : opts[:with]
+            raise e
           end
         end
       end
